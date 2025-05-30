@@ -1,0 +1,40 @@
+{
+  "name": "minibank",
+  "version": "1.0.0",
+  "description": "一个用于学习Solidity的小型银行系统",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "test:verbose": "hardhat test --verbose",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:hardhat": "hardhat run scripts/deploy.js --network hardhat",
+    "node": "hardhat node",
+    "clean": "hardhat clean",
+    "coverage": "npx hardhat coverage"
+  },
+  "keywords": [
+    "solidity",
+    "blockchain",
+    "ethereum",
+    "defi",
+    "smart-contracts",
+    "learning"
+  ],
+  "author": "你的名字",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@typechain/ethers-v6": "^0.5.0",
+    "@typechain/hardhat": "^9.0.0",
+    "chai": "^4.3.0",
+    "hardhat": "^2.19.0",
+    "hardhat-gas-reporter": "^1.0.9",
+    "solidity-coverage": "^0.8.0",
+    "typechain": "^8.3.0"
+  },
+  "dependencies": {
+    "ethers": "^6.8.0"
+  }
+} 

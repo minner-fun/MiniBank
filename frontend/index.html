@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏦 MiniBank - 链上小型银行</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-shadow {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- 头部 -->
+    <header class="gradient-bg text-white p-6 shadow-lg">
+        <div class="container mx-auto">
+            <div class="flex items-center justify-between">
+                <h1 class="text-3xl font-bold">🏦 MiniBank</h1>
+                <button id="connectBtn" class="bg-white text-purple-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition duration-300">
+                    连接钱包
+                </button>
+            </div>
+            <p class="mt-2 text-purple-100">您的链上银行系统 • 安全 • 透明 • 去中心化</p>
+        </div>
+    </header>
+
+    <!-- 主内容 -->
+    <main class="container mx-auto p-6">
+        <!-- 连接状态 -->
+        <div id="walletStatus" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 hidden">
+            <p class="font-bold">请先连接您的MetaMask钱包</p>
+        </div>
+
+        <!-- 用户信息卡片 -->
+        <div id="userInfo" class="bg-white rounded-xl card-shadow p-6 mb-6 hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">💰 我的账户</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <p class="text-blue-600 font-semibold">当前余额</p>
+                    <p id="currentBalance" class="text-2xl font-bold text-blue-800">0.000 ETH</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <p class="text-green-600 font-semibold">待结算利息</p>
+                    <p id="pendingInterest" class="text-2xl font-bold text-green-800">0.000 ETH</p>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <p class="text-purple-600 font-semibold">累计存款</p>
+                    <p id="totalDeposited" class="text-2xl font-bold text-purple-800">0.000 ETH</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作区域 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- 存款卡片 -->
+            <div class="bg-white rounded-xl card-shadow p-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">💳 存款</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">存款金额 (ETH)</label>
+                        <input type="number" id="depositAmount" 
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="最小金额: 0.001 ETH" step="0.001" min="0.001">
+                    </div>
+                    <button id="depositBtn" 
+                            class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        存款
+                    </button>
+                </div>
+            </div>
+
+            <!-- 取款卡片 -->
+            <div class="bg-white rounded-xl card-shadow p-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">💸 取款</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">取款金额 (ETH)</label>
+                        <input type="number" id="withdrawAmount" 
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                               placeholder="请输入取款金额" step="0.001" min="0.001">
+                    </div>
+                    <div class="flex space-x-2">
+                        <button id="withdrawBtn" 
+                                class="flex-1 bg-red-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-red-700 transition duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                            取款
+                        </button>
+                        <button id="withdrawAllBtn" 
+                                class="bg-orange-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-orange-700 transition duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                            全部取出
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 合约统计 -->
+        <div id="contractStats" class="bg-white rounded-xl card-shadow p-6 mt-6 hidden">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">📊 合约统计</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="text-center">
+                    <p class="text-gray-600">总用户数</p>
+                    <p id="totalUsers" class="text-2xl font-bold text-blue-600">0</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-gray-600">合约总余额</p>
+                    <p id="contractBalance" class="text-2xl font-bold text-green-600">0.000 ETH</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-gray-600">年利率</p>
+                    <p class="text-2xl font-bold text-purple-600">5%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 交易历史 -->
+        <div id="transactionHistory" class="bg-white rounded-xl card-shadow p-6 mt-6 hidden">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">📋 最近交易</h3>
+            <div id="transactionList" class="space-y-2">
+                <!-- 交易记录将在这里动态加载 -->
+            </div>
+        </div>
+    </main>
+
+    <!-- 状态提示 -->
+    <div id="notification" class="fixed top-4 right-4 p-4 rounded-lg shadow-lg hidden transition-all duration-300">
+        <p id="notificationText"></p>
+    </div>
+
+    <!-- 脚本 -->
+    <script>
+        // 合约配置（请替换为实际部署的合约地址）
+        const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; // 本地部署地址
+        const CONTRACT_ABI = [
+            // 这里需要从 artifacts/contracts/MiniBank.sol/MiniBank.json 复制ABI
+            // 为了演示，这里只列出主要函数
+            "function deposit() external payable",
+            "function withdraw(uint256 amount) external",
+            "function withdrawAll() external",
+            "function getMyBalance() external view returns (uint256)",
+            "function getMyDepositInfo() external view returns (uint256,uint256,uint256,uint256,uint256)",
+            "function getContractStats() external view returns (uint256,uint256,uint256)",
+            "function calculateInterest(address) external view returns (uint256)",
+            "event Deposited(address indexed user, uint256 amount, uint256 newBalance)",
+            "event Withdrawn(address indexed user, uint256 amount, uint256 newBalance)",
+            "event InterestAccrued(address indexed user, uint256 interestAmount)"
+        ];
+
+        let provider, signer, contract, userAddress;
+
+        // 页面加载时初始化
+        window.addEventListener('load', async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                console.log('MetaMask已安装');
+                await checkConnection();
+            } else {
+                showNotification('请安装MetaMask钱包', 'error');
+            }
+
+            // 绑定事件监听器
+            document.getElementById('connectBtn').addEventListener('click', connectWallet);
+            document.getElementById('depositBtn').addEventListener('click', deposit);
+            document.getElementById('withdrawBtn').addEventListener('click', withdraw);
+            document.getElementById('withdrawAllBtn').addEventListener('click', withdrawAll);
+        });
+
+        // 检查连接状态
+        async function checkConnection() {
+            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            if (accounts.length > 0) {
+                await setupWeb3();
+            } else {
+                showWalletStatus();
+            }
+        }
+
+        // 连接钱包
+        async function connectWallet() {
+            try {
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                await setupWeb3();
+                showNotification('钱包连接成功！', 'success');
+            } catch (error) {
+                console.error('连接钱包失败:', error);
+                showNotification('连接钱包失败', 'error');
+            }
+        }
+
+        // 设置Web3
+        async function setupWeb3() {
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            signer = provider.getSigner();
+            userAddress = await signer.getAddress();
+            contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+            // 更新UI
+            document.getElementById('connectBtn').textContent = `${userAddress.substring(0,6)}...${userAddress.substring(38)}`;
+            document.getElementById('walletStatus').classList.add('hidden');
+            document.getElementById('userInfo').classList.remove('hidden');
+            document.getElementById('contractStats').classList.remove('hidden');
+            document.getElementById('transactionHistory').classList.remove('hidden');
+
+            // 加载数据
+            await loadUserData();
+            await loadContractStats();
+            
+            // 监听事件
+            setupEventListeners();
+        }
+
+        // 显示钱包状态
+        function showWalletStatus() {
+            document.getElementById('walletStatus').classList.remove('hidden');
+        }
+
+        // 加载用户数据
+        async function loadUserData() {
+            try {
+                const [balance, pendingInterest, totalDeposited, totalWithdrawn, lastTime] = 
+                    await contract.getMyDepositInfo();
+
+                document.getElementById('currentBalance').textContent = 
+                    `${ethers.utils.formatEther(balance)} ETH`;
+                document.getElementById('pendingInterest').textContent = 
+                    `${ethers.utils.formatEther(pendingInterest)} ETH`;
+                document.getElementById('totalDeposited').textContent = 
+                    `${ethers.utils.formatEther(totalDeposited)} ETH`;
+            } catch (error) {
+                console.error('加载用户数据失败:', error);
+            }
+        }
+
+        // 加载合约统计
+        async function loadContractStats() {
+            try {
+                const [contractBalance, totalUsers, totalSupply] = await contract.getContractStats();
+                
+                document.getElementById('totalUsers').textContent = totalUsers.toString();
+                document.getElementById('contractBalance').textContent = 
+                    `${ethers.utils.formatEther(contractBalance)} ETH`;
+            } catch (error) {
+                console.error('加载合约统计失败:', error);
+            }
+        }
+
+        // 存款
+        async function deposit() {
+            const amount = document.getElementById('depositAmount').value;
+            if (!amount || parseFloat(amount) < 0.001) {
+                showNotification('请输入有效的存款金额（最小0.001 ETH）', 'error');
+                return;
+            }
+
+            try {
+                const tx = await contract.deposit({ 
+                    value: ethers.utils.parseEther(amount) 
+                });
+                
+                showNotification('交易已提交，等待确认...', 'info');
+                await tx.wait();
+                
+                showNotification('存款成功！', 'success');
+                document.getElementById('depositAmount').value = '';
+                await loadUserData();
+                await loadContractStats();
+            } catch (error) {
+                console.error('存款失败:', error);
+                showNotification('存款失败: ' + error.message, 'error');
+            }
+        }
+
+        // 取款
+        async function withdraw() {
+            const amount = document.getElementById('withdrawAmount').value;
+            if (!amount || parseFloat(amount) <= 0) {
+                showNotification('请输入有效的取款金额', 'error');
+                return;
+            }
+
+            try {
+                const tx = await contract.withdraw(ethers.utils.parseEther(amount));
+                
+                showNotification('交易已提交，等待确认...', 'info');
+                await tx.wait();
+                
+                showNotification('取款成功！', 'success');
+                document.getElementById('withdrawAmount').value = '';
+                await loadUserData();
+                await loadContractStats();
+            } catch (error) {
+                console.error('取款失败:', error);
+                showNotification('取款失败: ' + error.message, 'error');
+            }
+        }
+
+        // 全部取出
+        async function withdrawAll() {
+            if (!confirm('确定要取出所有余额吗？')) return;
+
+            try {
+                const tx = await contract.withdrawAll();
+                
+                showNotification('交易已提交，等待确认...', 'info');
+                await tx.wait();
+                
+                showNotification('全部取出成功！', 'success');
+                await loadUserData();
+                await loadContractStats();
+            } catch (error) {
+                console.error('全部取出失败:', error);
+                showNotification('全部取出失败: ' + error.message, 'error');
+            }
+        }
+
+        // 设置事件监听
+        function setupEventListeners() {
+            contract.on("Deposited", (user, amount, newBalance) => {
+                if (user.toLowerCase() === userAddress.toLowerCase()) {
+                    addTransaction('存款', ethers.utils.formatEther(amount), 'success');
+                    loadUserData();
+                }
+            });
+
+            contract.on("Withdrawn", (user, amount, newBalance) => {
+                if (user.toLowerCase() === userAddress.toLowerCase()) {
+                    addTransaction('取款', ethers.utils.formatEther(amount), 'warning');
+                    loadUserData();
+                }
+            });
+
+            contract.on("InterestAccrued", (user, interestAmount) => {
+                if (user.toLowerCase() === userAddress.toLowerCase()) {
+                    addTransaction('利息', ethers.utils.formatEther(interestAmount), 'info');
+                }
+            });
+        }
+
+        // 添加交易记录
+        function addTransaction(type, amount, style) {
+            const transactionList = document.getElementById('transactionList');
+            const now = new Date().toLocaleString();
+            
+            const styleClasses = {
+                'success': 'text-green-600 bg-green-50',
+                'warning': 'text-orange-600 bg-orange-50',
+                'info': 'text-blue-600 bg-blue-50'
+            };
+
+            const transactionElement = document.createElement('div');
+            transactionElement.className = `p-3 rounded-lg ${styleClasses[style]}`;
+            transactionElement.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span class="font-semibold">${type}: ${amount} ETH</span>
+                    <span class="text-sm">${now}</span>
+                </div>
+            `;
+            
+            transactionList.insertBefore(transactionElement, transactionList.firstChild);
+            
+            // 只保留最近10条记录
+            while (transactionList.children.length > 10) {
+                transactionList.removeChild(transactionList.lastChild);
+            }
+        }
+
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            const notificationText = document.getElementById('notificationText');
+            
+            const typeClasses = {
+                'success': 'bg-green-500 text-white',
+                'error': 'bg-red-500 text-white',
+                'info': 'bg-blue-500 text-white',
+                'warning': 'bg-yellow-500 text-black'
+            };
+
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg ${typeClasses[type]} transition-all duration-300`;
+            notificationText.textContent = message;
+            notification.classList.remove('hidden');
+
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 5000);
+        }
+
+        // 定期更新数据
+        setInterval(async () => {
+            if (contract && userAddress) {
+                await loadUserData();
+                await loadContractStats();
+            }
+        }, 30000); // 每30秒更新一次
+    </script>
+</body>
+</html> 
